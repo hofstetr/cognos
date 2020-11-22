@@ -9,7 +9,7 @@ For the next step I need copies of several configuration files in order to custo
 
 > docker run --rm httpd:2.4 cat /usr/local/apache2/conf/httpd.conf > web/my-httpd.conf
 
-> Edit the my-httpd.conf and uncomment the following three lines:
+Edit the my-httpd.conf and uncomment the following three lines:
 
 1. LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
 2. LoadModule ssl_module modules/mod_ssl.so
@@ -17,7 +17,7 @@ For the next step I need copies of several configuration files in order to custo
 
 Next, I need to obtain a valid key and certificate for the purpose of running a web site. For now I'm just going to generate a self signed pair and live with the browser warning.
 
-> openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt
+> openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout web/server.key -out web/server.crt
 
 Note: I will regenerate this key pair and enter my alias for the common name once it is known.
 
@@ -32,7 +32,7 @@ Then build the image and run it.
 
 > docker build -t my-apache2 .
 
-> docker run -dit --name my-running-app -p 443:443 my-apache2
+> docker run -dit --name webtier -p 443:443 my-apache2
 
 Checks the logs to be sure the container started properly
 
