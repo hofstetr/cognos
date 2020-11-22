@@ -36,4 +36,4 @@ Then build the image and run it.
 
 Checks the logs to be sure the container started properly
 
-> docker logs my-apache2
+> docker logs webtier
