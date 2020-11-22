@@ -1,79 +1,46 @@
 ## Content Store
-refs: https://community.ibm.com/community/user/hybriddatamanagement/blogs/pradeep-natarajan/2019/05/13/testdevsystem-with-docker
-
-http://www.informix-dba.com/2010/07/creating-dbspaces-databases-tables-and.html
-
-This process will create a container to host the Content Store database. In this case I utilized the developer edition of Informix, an otherwise supported content database platform.
+As it turns out the developer edition of Informix does not allow more than one database which is a requirement for Cognos to use Informix as a content store due to storing some columns as blobs. The next best option I found for a light weight database is actually Microsoft SQL Server. This process will create a container to host the Content Store database. In this case I utilized the developer edition of MSSQL 2019.
 
 First, create a volume in your docker environment to persist our data. There are several ways to do this but the most common is a named volume.
 
-> docker volume create ifxdata
+> docker volume create cognos_data
 
-Download the base Informix container.
+Download the base MSSQL 2019 container.
 
-> docker pull ibmcom/informix-developer-database
+> docker pull mcr.microsoft.com/mssql/server:2019-latest
 
-Run the base container to initialize Informix. Note the volume is mounted to be used for persisted storage. Also notice that we only need the TCP port exposed for our purposes.
+Run the base container to initialize. Note the volume is mounted to be used for persisted storage. Also notice that I do not specify an edition so that it defaults to developer.
 
-> docker run -it --name ifx --privileged -v ifxdata:/opt/ibm/data -p 9088:9088 -p 9089:9089 -e LICENSE=accept ibmcom/informix-developer-database
+> docker run --name mssql2019 -v cognos_data:/var/opt/mssql -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=yourStrong(!)Password' -p 1433:1433 -d mcr.microsoft.com/mssql/server:2019-latest
 
-After a few minutes you will have to exit the shell with ctl-c twice which will stop the container. Check that it is stopped and if necessary start it back up in order to make some persistent changes.
+You can follow the container logs to ensure proper startup.
 
-> docker ps
+> docker logs --follow mssql2019
 
-> docker start ifx
+Customize the container to create a dedicated database for the Content and Audit stores.
 
-Customize the container to create a dedicated database for the Content Store.
+> docker exec -it mssql2019 bash
 
-> docker exec -it ifx bash
+> mssql@14de7da50a13:/$ cd /opt/mssql-tools/bin
 
-> vi /opt/ibm/scripts/informix_inf.env
-- add export DB_LOCALE=en_us.utf8
-- add export CLIENT_LOCALE=en_us.utf8
-> exit and restart the container
+> mssql@65d4bd7582e0:/opt/mssql-tools/bin$ ./sqlcmd -S localhost -U sa -P yourStrong(!)Password -d master
 
-> [informix@ifx ~]$ sudo chown informix:informix /opt/ibm/data
+> 1> create database content_store
 
-> [informix@ifx ~]$ touch /opt/ibm/data/csdb.01
+> 2> create database audit_store
 
-> [informix@ifx ~]$ chmod 660 /opt/ibm/data/csdb.01
+> 3> go
 
-> [informix@ifx ~]$ onspaces -c -d csdb -k 4 -p /opt/ibm/data/csdb.01 -o 0 -s 4194304
+> 1> exit
 
-> [informix@ifx ~]$ ontape -s -L 0 -d
+> mssql@14de7da50a13:/opt/mssql-tools/bin$ exit
 
-> [informix@ifx ~]$ onstat -d
+Now commit the modified container to image, stop the original container, remove it and start up the modified image
 
-> [informix@ifx ~]$ dbaccess - -
+> docker commit mssql2019 cognosdb:v1
 
-> create database cs in csdb with log mode ANSI;
+> docker stop mssql2019
 
-Stop the Informix server.
+> docker rm mssql2019
 
-> onmode -ky
-
-Create the custom container image.
-
-> [informix@ifx ~]$ exit
-> docker commit ifx cognosdb:v1
-
-Stop the base container image
-
-> docker stop ifx
-
-Run the custom container the first time
-
-> docker run --name cognosdb -v ifxdata:/opt/ibm/data -p 9088:9088 -p 9089:9089 -e LICENSE=accept cognosdb:v1
-
-Once again you will have to ctl-c to exit the container output but it will leave the container running. Afterwards just use docker stop / start.
-
-> docker stop cognosdb
-
-> docker start cognosdb
-
-There seems to be a bug when creating the customer container that removes the DRDA alias from the onconfig. Add the DRDA alias back to the default /opt/ibm/informix/etc/onconfig after creating the custom container.
-
-1. docker exec -it cognosdb bash
-2. vi /opt/ibm/informix/etc/onconfig
-3. Locate the DBSERVERALIASES line
-4. Add informix_dr as an alias to match the entry in sqlhosts
+> docker run --name cognosdb -p 1433:1433 -d cognosdb:v1
