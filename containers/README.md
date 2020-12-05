@@ -26,7 +26,7 @@ Tying all the containers together to run within container management, in this ca
 3. Create the overlay network
 [root@master-1 ~]# docker network create --driver overlay cognet
 4. Create Content Store service
-    a. [root@master-1 ~]# docker service create --name cognosdb --network cognet cognosdb:v1
+    a. [root@master-1 ~]# docker service create --name cognos-db --network cognet cognosdb:v1
     b. [root@master-1 ~]# docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 o00whkrq3pp4        cognosdb            replicated          1/1                 cognosdb:v1
