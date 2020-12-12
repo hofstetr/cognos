@@ -1,0 +1,7 @@
+[template]
+src = "cogstartup.xml.tmpl"
+dest = "/opt/ibm/cognos/analytics/app/configuration/cogstartup.xml"
+keys = [
+    "HOSTNAME",
+    "IPADDRESS",
+]
