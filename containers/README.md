@@ -19,7 +19,7 @@ yum install -y xauth libXtst libXtst.i686 glibc glibc.i686 libstdc++ libstdc++.i
 Note: xauth and libXtst are necessary for X11 functionality.
 
 ## Step X [Docker Swarm](Docker_Swarm.md)
-Tying all the containers together to run within container management, in this case a Swarm cluster.
+Tying all the containers together to run within container management, in this case a Swarm cluster. The use of a common overlay network is what allows service name resolution between containers even across compute instances.
 
 1. docker swarm init --advertise-addr $(hostname -i)
 2. Join worker nodes
@@ -29,6 +29,16 @@ Tying all the containers together to run within container management, in this ca
     a. [root@master-1 ~]# docker service create --name cognos-db --network cognet cognosdb:v1
     b. [root@master-1 ~]# docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
-o00whkrq3pp4        cognosdb            replicated          1/1                 cognosdb:v1
+u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
 
-docker service create --name content-manager --network cognet content-manager:v11.1.7
+5. Create the data tier service (Note: due to the healthcheck this will take 5 minutes)
+    a. [root@master-1 ~]# docker service create --name content-manager --network cognet content-manager:v11.1.7
+    b. [root@master-1 ~]# docker service ls
+ID                  NAME                MODE                REPLICAS            IMAGE                     PORTS
+u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
+w7b9505vjngf        content-manager     replicated          1/1                 content-manager:v11.1.7
+
+6. Check what node is running the container with:
+    a. [root@master-1 ~]# docker service ps content-manager
+ID                  NAME                IMAGE                     NODE                DESIRED STATE       CURRENT STATE                ERROR               PORTS
+vp4jzhfkpqdn        content-manager.1   content-manager:v11.1.7   master-1            Running             Running about a minute ago
