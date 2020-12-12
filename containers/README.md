@@ -30,3 +30,5 @@ Tying all the containers together to run within container management, in this ca
     b. [root@master-1 ~]# docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 o00whkrq3pp4        cognosdb            replicated          1/1                 cognosdb:v1
+
+docker service create --name content-manager --network cognet content-manager:v11.1.7

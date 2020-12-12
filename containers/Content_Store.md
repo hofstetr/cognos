@@ -1,4 +1,4 @@
-## Content Store
+# Content Store
 As it turns out the developer edition of Informix does not allow more than one database which is a requirement for Cognos to use Informix as a content store due to storing some columns as blobs. The next best option I found for a light weight database is actually Microsoft SQL Server. This process will create a container to host the Content Store database. In this case I utilized the developer edition of MSSQL 2019.
 
 First, create a volume in your docker environment to persist our data. There are several ways to do this but the most common is a named volume.
