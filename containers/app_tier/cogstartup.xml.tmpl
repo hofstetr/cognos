@@ -1595,7 +1595,7 @@ Master configuration file for all IBM Cognos components.
           <!-- Specifies the IP addresses that are added to the Subject Alternative Name extensions 
                in the server certificate.  -->
           <crn:parameter name="sanIPAddress">
-            <crn:value xsi:type="xsd:string">{{ getenv "HOSTNAME" }}</crn:value>
+            <crn:value xsi:type="xsd:string">{{ getenv "IPADDRESS" }}</crn:value>
           </crn:parameter>
           <!-- sanEmail: A space-separated list of e-mail addresses that are added to the Subject 
                Alternative Name extension in the server certificate. If no e-mail addresses are 
