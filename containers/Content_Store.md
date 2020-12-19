@@ -43,4 +43,4 @@ Now commit the modified container to image, stop the original container, remove 
 
 > docker rm mssql2019
 
-> docker run --name cognosdb --hostname cognosdb -p 1433:1433 -d cognosdb:v1
+> docker run --name cognosdb --hostname cognosdb -v cognos_data:/var/opt/mssql -p 1433:1433 -d cognosdb:v1
