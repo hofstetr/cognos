@@ -26,7 +26,7 @@ Tying all the containers together to run within container management, in this ca
 3. Create the overlay network
 [root@master-1 ~]# docker network create --driver overlay cognet
 4. Create Content Store service
-    a. [root@master-1 ~]# docker service create --name cognos-db --network cognet cognosdb:v1
+    a. [root@master-1 ~]# docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master-1\",volume-opt=device=:/opt/ibm/cognos_data cognosdb:v1
     b. [root@master-1 ~]# docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
@@ -42,3 +42,23 @@ w7b9505vjngf        content-manager     replicated          1/1                 
     a. [root@master-1 ~]# docker service ps content-manager
 ID                  NAME                IMAGE                     NODE                DESIRED STATE       CURRENT STATE                ERROR               PORTS
 vp4jzhfkpqdn        content-manager.1   content-manager:v11.1.7   master-1            Running             Running about a minute ago
+
+7. Create the app tier service (Note: due to the healthcheck this will take 5 minutes)
+    a. [root@master-1 ~]# docker service create --name application-tier --network cognet application-tier:v11.1.7
+    b. [root@master-1 ~]# docker service ls
+ID                  NAME                MODE                REPLICAS            IMAGE                      PORTS
+y3xag00nx3lk        application-tier    replicated          1/1                 application-tier:v11.1.7
+9gtej1kluvj6        cognos-db           replicated          1/1                 cognosdb:v1
+o7vrx1r8yc7j        content-manager     replicated          1/1                 content-manager:v11.1.7
+
+8. Check what node is running the container with:
+    a. [root@master-1 ~]# docker service ps application-tier
+ID                  NAME                 IMAGE                      NODE                DESIRED STATE       CURRENT STATE                ERROR               PORTS
+wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running about a minute ago
+
+9. Scale the application tier service (This is really cool!)
+    a. [root@master-1 ~]# docker service scale application-tier=2
+    b. [root@master-1 ~]# docker service ps application-tier
+ID                  NAME                 IMAGE                      NODE                DESIRED STATE       CURRENT STATE            ERROR               PORTS
+wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running 3 minutes ago
+8dp309oowwnx        application-tier.2   application-tier:v11.1.7   master-1            Running             Running 12 seconds ago

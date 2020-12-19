@@ -16,3 +16,13 @@ save and quit, then
 
 sudo systemctl daemon-reload
 sudo systemctl start docker
+
+Add the NFS utilities to support creating NFS shared volumes.
+
+yum install nfs-utils rpcbind
+systemctl enable nfs-server
+systemctl enable rpcbind
+cat /etc/exports
+/opt/ibm/cognos_data 10.128.0.0/20(rw,sync,no_root_squash)
+systemctl start nfs
+exportfs -v

@@ -1,9 +1,12 @@
 # Content Store
 As it turns out the developer edition of Informix does not allow more than one database which is a requirement for Cognos to use Informix as a content store due to storing some columns as blobs. The next best option I found for a light weight database is actually Microsoft SQL Server. This process will create a container to host the Content Store database. In this case I utilized the developer edition of MSSQL 2019.
 
-First, create a volume in your docker environment to persist our data. There are several ways to do this but the most common is a named volume.
+First, create a volume in your docker environment to persist our data. There are several ways to do this but the most common is a named volume. In order to work in a swarm cluster though it has to be a filesystem that can be accessed from any cluster node. In this case I use an NFS share to do that which does require that each node in the cluster be set up with the share.
 
-> docker volume create cognos_data
+> 
+
+
+> docker volume create --driver local --opt type=nfs --opt o=nfsvers=4,addr=master-1,rw --opt device=:/opt/ibm/cognos_data cognos_data
 
 Download the base MSSQL 2019 container.
 
@@ -42,5 +45,3 @@ Now commit the modified container to image, stop the original container, remove 
 > docker stop mssql2019
 
 > docker rm mssql2019
-
-> docker run --name cognosdb --hostname cognosdb -v cognos_data:/var/opt/mssql -p 1433:1433 -d cognosdb:v1
