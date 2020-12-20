@@ -79,4 +79,4 @@ $ docker service ps application-tier
 ID                  NAME                 IMAGE                      NODE                DESIRED STATE       CURRENT STATE            ERROR               PORTS
 wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running 3 minutes ago
 8dp309oowwnx        application-tier.2   application-tier:v11.1.7   master-1            Running             Running 12 seconds ago
-```S
+```
