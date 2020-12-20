@@ -96,7 +96,7 @@ RUN chmod +x /opt/ibm/cognos/docker-entrypoint.sh
 CMD /opt/ibm/cognos/docker-entrypoint.sh
 HEALTHCHECK --start-period=5m --interval=30s --timeout=5s CMD curl -f http://localhost:9300/p2pd/servlet/dispatch | grep Running || exit 1
 ```
-Place the Dockerfile, templates, entry point script and into a common location. Then build the image with:
+Place the Dockerfile, templates, entry point script and installation into a common location. Then build the image with:
 
 ```bash
 $ docker build --tag=application-tier:v11.1.7 .
