@@ -68,7 +68,7 @@ Now, add the Cognos Analytics configuration items from the provided template to 
         </FilesMatch>
 </IfModule>
 
-<Directory /opt/IBM/cognos/analytics>
+<Directory /opt/ibm/cognos/analytics/web>
         <IfModule mod_deflate>
                 AddOutputFilterByType DEFLATE text/html application/json text/css application/javascript
         </IfModule>
@@ -81,7 +81,7 @@ Now, add the Cognos Analytics configuration items from the provided template to 
         BalancerMember http://application-tier:9300 route=1
 </Proxy>
 
-Alias /ibmcognos /opt/IBM/cognos/analytics/webcontent
+Alias /ibmcognos /opt/ibm/cognos/analytics/web/webcontent
 RewriteEngine On
 # Send default URL to service
 RewriteRule ^/ibmcognos/bi/($|[^/.]+(\.jsp)(.*)?) balancer://mycluster/bi/$1$3 [P]
