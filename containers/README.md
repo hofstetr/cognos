@@ -14,51 +14,69 @@ In certain situations we would not need a web tier but since I am using Google C
 
 
 Install following pre-requisite packages:
-yum install -y xauth libXtst libXtst.i686 glibc glibc.i686 libstdc++ libstdc++.i686 nspr nspr.i686 nss nss.i686 motif motif.i686
+```bash
+$ yum install -y xauth libXtst libXtst.i686 glibc glibc.i686 libstdc++ libstdc++.i686 nspr nspr.i686 nss nss.i686 motif motif.i686
+```
 
 Note: xauth and libXtst are necessary for X11 functionality.
 
 ## Step X [Docker Swarm](Docker_Swarm.md)
 Tying all the containers together to run within container management, in this case a Swarm cluster. The use of a common overlay network is what allows service name resolution between containers even across compute instances.
 
-1. docker swarm init --advertise-addr $(hostname -i)
-2. Join worker nodes
-3. Create the overlay network
-[root@master-1 ~]# docker network create --driver overlay cognet
-4. Create Content Store service
-    a. [root@master-1 ~]# docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master-1\",volume-opt=device=:/opt/ibm/cognos_data cognosdb:v1
-    b. [root@master-1 ~]# docker service ls
+First, initialize the swarm cluster with a series of init commands on the master(s) followed by the worker(s).
+
+```bash
+$ docker swarm init --advertise-addr $(hostname -i)
+```
+
+Create the overlay network which provides addressability between containers and services.
+
+```bash
+$ docker network create --driver overlay cognet
+```
+
+Create the Microsoft SQL service to host the content store database. Notice the use of an NFS mounted volume in order to preserve data across server restarts as well as to allow the service to run the container on any node. 
+
+```bash
+$ docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master-1\",volume-opt=device=:/opt/ibm/cognos_data cognosdb:v1
+$ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
+```
 
-5. Create the data tier service (Note: due to the healthcheck this will take 5 minutes)
-    a. [root@master-1 ~]# docker service create --name content-manager --network cognet content-manager:v11.1.7
-    b. [root@master-1 ~]# docker service ls
+Create the data tier service (aka. content manager). Due to the health check added to the container this step will take a little time to finish. If desired, use crtl-c to send the service creation to the background.
+
+```bash
+$ docker service create --name content-manager --network cognet content-manager:v11.1.7
+$ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                     PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
 w7b9505vjngf        content-manager     replicated          1/1                 content-manager:v11.1.7
-
-6. Check what node is running the container with:
-    a. [root@master-1 ~]# docker service ps content-manager
+$ docker service ps content-manager
 ID                  NAME                IMAGE                     NODE                DESIRED STATE       CURRENT STATE                ERROR               PORTS
 vp4jzhfkpqdn        content-manager.1   content-manager:v11.1.7   master-1            Running             Running about a minute ago
+```
 
-7. Create the app tier service (Note: due to the healthcheck this will take 5 minutes)
-    a. [root@master-1 ~]# docker service create --name application-tier --network cognet application-tier:v11.1.7
-    b. [root@master-1 ~]# docker service ls
+Create the application tier service. Due to the health check added to the container this step will take a little time to finish. If desired, use crtl-c to send the service creation to the background.
+
+```bash
+$ docker service create --name application-tier --network cognet application-tier:v11.1.7
+$ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                      PORTS
 y3xag00nx3lk        application-tier    replicated          1/1                 application-tier:v11.1.7
 9gtej1kluvj6        cognos-db           replicated          1/1                 cognosdb:v1
 o7vrx1r8yc7j        content-manager     replicated          1/1                 content-manager:v11.1.7
-
-8. Check what node is running the container with:
-    a. [root@master-1 ~]# docker service ps application-tier
+$ docker service ps application-tier
 ID                  NAME                 IMAGE                      NODE                DESIRED STATE       CURRENT STATE                ERROR               PORTS
 wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running about a minute ago
+```
 
-9. Scale the application tier service (This is really cool!)
-    a. [root@master-1 ~]# docker service scale application-tier=2
-    b. [root@master-1 ~]# docker service ps application-tier
+The really cool part is the application tier service can easily be scaled up or down based on need.
+
+```bash
+$ docker service scale application-tier=2
+$ docker service ps application-tier
 ID                  NAME                 IMAGE                      NODE                DESIRED STATE       CURRENT STATE            ERROR               PORTS
 wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running 3 minutes ago
 8dp309oowwnx        application-tier.2   application-tier:v11.1.7   master-1            Running             Running 12 seconds ago
+```S
