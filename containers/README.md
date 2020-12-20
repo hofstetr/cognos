@@ -80,3 +80,17 @@ ID                  NAME                 IMAGE                      NODE        
 wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running 3 minutes ago
 8dp309oowwnx        application-tier.2   application-tier:v11.1.7   master-1            Running             Running 12 seconds ago
 ```
+
+Create the web tier service.
+
+```bash
+$ docker service create --name web-tier --network cognet --publish 443:443 my-apache2
+$ docker service ls
+ID                  NAME                MODE                REPLICAS            IMAGE                      PORTS
+y3xag00nx3lk        application-tier    replicated          1/1                 application-tier:v11.1.7
+9gtej1kluvj6        cognos-db           replicated          1/1                 cognosdb:v1
+o7vrx1r8yc7j        content-manager     replicated          1/1                 content-manager:v11.1.7
+$ docker service ps application-tier
+ID                  NAME                 IMAGE                      NODE                DESIRED STATE       CURRENT STATE                ERROR               PORTS
+wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1            Running             Running about a minute ago
+```
