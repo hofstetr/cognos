@@ -23,6 +23,7 @@ Several configuration changes can be applied prior to building the image in orde
     3. logs/*
     4. configuration/certs/CAM*
     5. configuration/cogstartup.xml
+9. Copy any required JDBC drivers to the drivers folder.
 
 ## Entrypoint Script
 An entrypoint script will be needed to perform the remaining dynamic configuration and start the data tier services. I plan to use [confd](https://github.com/kelseyhightower/confd), a popular lightweight configuration management tool that is capable of integrating with many backends, such as: env, etcd, consul, vault, etc, to source configuration values. It is also capable of watching for changes in values and taking appropriate actions including restarting services. Only a couple of values are necessary which can be obtained from the env at startup. The contents of the script are relatively simple:

@@ -1,42 +1,136 @@
 ## Web Tier
-Since Apache is open source and free, using an Apache container makes a lot of sense for my web tier.
+Since Apache is open source and free, using an Apache container makes a lot of sense for my web tier. There are several ways to setup a web server for use with Cognos Analytics but the best is to utilize the optional gateway installation along with several customizations to the Apache configuration. Doing so offloads a lot of the static content processing from the application tier.
 
+## Installation
+I prefer to perform the installation on a bastion host rather than inside the container at startup. This reduces the container startup time. Normal startup time for IBM Cognos Analytics can range from 5 minutes on up to 15 minutes depending on a number of factors including: content store initialization, number of authentication sources to connect to and latency with all the dependencies. Adding to that an installation step could add another several precious minutes. Doing so also allows for the pre-configuration of common settings that would not change across containers.
+
+1. 
+
+## Pre-Configuration
+Several configuration changes can be applied prior to building the image in order to simplify the actual container startup. Settings like authentication source and content store connections will not change each time the data tier service is created in a swarm. In this example, I plan to use Google Identity Platform as an authentication source via OpenID Connect integration.
+
+1. Change the host in Content Manager URIs to the name of the data tier service (ie. content-manager)
+2. Change the configuration group to match
+3. Change the configuration group contact host to the name of the data tier service (ie. content-manager)
+4. Save and Export the configuration to cogstartup.xml.tmpl and exit (Note: it will complain about not being able to connect to content-manager at this time so just save as plain text)
+5. Remove the following files to maintain as small a footprint as possible for the image and to help avoid confusion in the event that template processing fails:
+    1. temp/*
+    2. data/*
+    3. logs/*
+    4. configuration/certs/CAM*
+    5. configuration/cogstartup.xml
+
+## Build Image
 First, pull the image
 
-> docker pull httpd
+```bash
+$ docker pull httpd
+```
 
 For the next step I need copies of several configuration files in order to customize them. There is more than one way to obtain the copies but for now I am going to run a few temporary containers and fetch the existing configuration files from them.
 
-> docker run --rm httpd:2.4 cat /usr/local/apache2/conf/httpd.conf > web/my-httpd.conf
+```bash
+$ docker run --rm httpd:2.4 cat /usr/local/apache2/conf/httpd.conf > my-httpd.conf
+$ docker run --rm httpd:2.4 cat /usr/local/apache2/conf/extra/httpd-ssl.conf > httpd-ssl.conf
+```
 
-Edit the my-httpd.conf and uncomment the following three lines:
+Edit the my-httpd.conf and uncomment the following modules along with the SSL configuration:
 
-1. LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
-2. LoadModule ssl_module modules/mod_ssl.so
-3. Include conf/extra/httpd-ssl.conf
-
+```text
+LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+LoadModule ssl_module modules/mod_ssl.so
+LoadModule rewrite_module modules/mod_rewrite.so
+LoadModule expires_module modules/mod_expires.so
+LoadModule proxy_module modules/mod_proxy.so
+LoadModule proxy_http_module modules/mod_proxy_http.so
+LoadModule proxy_balancer_module modules/mod_proxy_balancer.so
+LoadModule deflate_module modules/mod_deflate.so
+LoadModule slotmem_shm_module modules/mod_slotmem_shm.so
+LoadModule slotmem_plain_module modules/mod_slotmem_plain.so
+LoadModule lbmethod_byrequests_module modules/mod_lbmethod_byrequests.so
+Include conf/extra/httpd-ssl.conf
+```
 Next, I need to obtain a valid key and certificate for the purpose of running a web site. For now I'm just going to generate a self signed pair and live with the browser warning.
 
-> openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout web/server.key -out web/server.crt
+```bash
+$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout web/server.key -out web/server.crt
+```
 
 Note: I will regenerate this key pair and enter my alias for the common name once it is known.
 
+Now, add the Cognos Analytics configuration items from the provided template to the end of httpd-sso.conf just before the closing virtual host.
+
+```text
+<IfModule mod_expires.c>
+        <FilesMatch "\.(jpe?g|png|gif|js|css|json|html|woff2?|template)$">
+                ExpiresActive On
+                ExpiresDefault "access plus 1 day"
+        </FilesMatch>
+</IfModule>
+
+<Directory /opt/IBM/cognos/analytics>
+        <IfModule mod_deflate>
+                AddOutputFilterByType DEFLATE text/html application/json text/css application/javascript
+        </IfModule>
+        Options Indexes MultiViews
+        AllowOverride None
+        Require all granted
+</Directory>
+
+<Proxy balancer://mycluster>
+        BalancerMember http://application-tier:9300 route=1
+</Proxy>
+
+Alias /ibmcognos /opt/IBM/cognos/analytics/webcontent
+RewriteEngine On
+# Send default URL to service
+RewriteRule ^/ibmcognos/bi/($|[^/.]+(\.jsp)(.*)?) balancer://mycluster/bi/$1$3 [P]
+RewriteRule ^/ibmcognos/bi/(login(.*)?) balancer://mycluster/bi/$1 [P]
+
+# Rewrite Event Studio static references
+RewriteCond %{HTTP_REFERER} v1/disp [NC,OR]
+RewriteCond %{HTTP_REFERER} (ags|cr1|prompting|ccl|common|skins|ps|cps4)/(.*)\.css [NC]
+RewriteRule ^/ibmcognos/bi/(ags|cr1|prompting|ccl|common|skins|ps|cps4)/(.*) /ibmcognos/$1/$2 [PT,L]
+
+# Rewrite Saved-Output and Viewer static references
+RewriteRule ^/ibmcognos/bi/rv/(.*)$ /ibmcognos/rv/$1 [PT,L]
+
+# Define cognos location
+<Location /ibmcognos>
+        RequestHeader set X-BI-PATH /ibmcognos/bi/v1
+</Location>
+
+# Route CA REST service requests through proxy with load balancing
+<Location /ibmcognos/bi/v1>
+        ProxyPass balancer://mycluster/bi/v1
+</Location>
+```
+
 Create the Docker file that will be used to create the custom image and insert the following:
 
-1. FROM httpd:2.4
-2. COPY ./my-httpd.conf /usr/local/apache2/conf/httpd.conf
-3. COPY ./server.key /usr/local/apache2/conf/server.key
-4. COPY ./server.crt /usr/local/apache2/conf/server.crt
+```dockerfile
+FROM httpd:2.4
+COPY ./my-httpd.conf /usr/local/apache2/conf/httpd.conf
+COPY ./httpd-ssl.conf /usr/local/apache2/conf/extra/httpd-ssl.conf
+COPY ./server.key /usr/local/apache2/conf/server.key
+COPY ./server.crt /usr/local/apache2/conf/server.crt
+USER root
+RUN mkdir -p /opt/ibm/cognos/analytics/web
+COPY /web /opt/ibm/cognos/analytics/web
+```
 
 Then build the image and run it.
 
-> docker build -t my-apache2 .
-
-> docker run -dit --name webtier -p 443:443 my-apache2
+```bash
+$ docker build -t my-apache2 .
+$ docker run -dit --name webtier -p 443:443 my-apache2
+```
 
 Check the logs to be sure the container started properly
 
-> docker logs webtier
+```bash
+$ docker logs webtier
+```
 
 ## Domain Registration
 In order to access from the internet a domain registration will be required. I just used [Google Domains](https://domains.google.com). There is an annual charge for registering your domain.
