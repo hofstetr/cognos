@@ -38,7 +38,7 @@ $ docker network create --driver overlay cognet
 Create the Microsoft SQL service to host the content store database. Notice the use of an NFS mounted volume in order to preserve data across server restarts as well as to allow the service to run the container on any node. 
 
 ```bash
-$ docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master-1\",volume-opt=device=:/opt/ibm/cognos_data cognosdb:v1
+$ docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master-1\",volume-opt=device=:/opt/ibm/cognos_data us.gcr.io/stocks-289415/cognosdb:v1
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
@@ -47,7 +47,7 @@ u4q1nho6zg0d        cognos-db           replicated          1/1                 
 Create the data tier service (aka. content manager). Due to the health check added to the container this step will take a little time to finish. If desired, use crtl-c to send the service creation to the background.
 
 ```bash
-$ docker service create --name content-manager --network cognet content-manager:v11.1.7
+$ docker service create --name content-manager --network cognet us.gcr.io/stocks-289415/content-manager:v11.1.7
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                     PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
@@ -60,7 +60,7 @@ vp4jzhfkpqdn        content-manager.1   content-manager:v11.1.7   master-1      
 Create the application tier service. Due to the health check added to the container this step will take a little time to finish. If desired, use crtl-c to send the service creation to the background.
 
 ```bash
-$ docker service create --name application-tier --network cognet application-tier:v11.1.7
+$ docker service create --name application-tier --network cognet us.gcr.io/stocks-289415/application-tier:v11.1.7
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                      PORTS
 y3xag00nx3lk        application-tier    replicated          1/1                 application-tier:v11.1.7
@@ -84,7 +84,7 @@ wz3m1tf9b497        application-tier.1   application-tier:v11.1.7   master-1    
 Create the web tier service.
 
 ```bash
-$ docker service create --name web-tier --network cognet --publish 443:443 my-apache2
+$ docker service create --name web-tier --network cognet --publish 443:443 us.gcr.io/stocks-289415/my-apache2
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                      PORTS
 y3xag00nx3lk        application-tier    replicated          1/1                 application-tier:v11.1.7

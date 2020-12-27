@@ -95,10 +95,37 @@ ADD cogstartup.xml.tmpl /etc/confd/templates
 COPY /docker-entrypoint.sh /opt/ibm/cognos
 RUN chmod +x /opt/ibm/cognos/docker-entrypoint.sh
 CMD /opt/ibm/cognos/docker-entrypoint.sh
-HEALTHCHECK --start-period=5m --interval=30s --timeout=5s CMD curl -f http://localhost:9300/p2pd/servlet/dispatch | grep Running || exit 1
+HEALTHCHECK --start-period=5m --interval=30s --timeout=5s CMD curl -f http://localhost:9300/bi/ | grep "Cognos Analytics" || exit 1
 ```
 Place the Dockerfile, templates, entry point script and installation into a common location. Then build the image with:
 
 ```bash
 $ docker build --tag=application-tier:v11.1.7 .
 ```
+
+## Push the image
+To work best within a swarm cluster, and to reduce maintenance, the images should be pushed to a registry rather than exported and copied to each virtual machine in the cluster. There are serveral options for storing images varying from: running your own registry container, an enterprise registry or a cloud registry. This step will push the image into a private Google container registry in the cloud.
+
+The Google container registry utilizes a storage bucket within the project to store images. The bucket itself is automatically created.
+
+The first step to be able to push an image to any registry is to authenticate. In this case, all virtual machines in the Google cloud preinstall the gcloud executable to do this. Google recommends using a service account along with a key file that can be obtained from the Google cloud console. When creating the service account grant the Storage Admin and Container Registry Service Agent roles.
+
+1. Visit APIs and Services > Credentials
+2. Click on the service account to generate the key file for
+3. Then select to ADD KEY > Create a new key
+
+The key file will be saved locally. Copy it to the virtual machine to be used for the next step.
+
+```bash
+$ gcloud auth activate-service-account container-registry@stocks-289415.iam.gserviceaccount.com --key-file cloud-registry.json
+$ gcloud auth configure-docker
+```
+
+Now retag the image and push it to the registry:
+
+```bash
+$ docker tag application-tier:v11.1.7 us.gcr.io/stocks-289415/application-tier:v11.1.7
+$ docker push us.gcr.io/stocks-289415/application-tier:v11.1.7
+```
+
+
