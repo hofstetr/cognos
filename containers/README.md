@@ -27,6 +27,18 @@ First, initialize the swarm cluster with a series of init commands on the master
 
 ```bash
 $ docker swarm init --advertise-addr $(hostname -i)
+Swarm initialized: current node (jki2q4sd0lt81nol7ruh38q95) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token SWMTKN-1-4hjmliytwko2sqhdltddd61gvzeynvlsy0zlab0f99rb4n3c10-c2wjkjeezxklramrzogzbstld 10.128.0.6:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+```
+
+```bash
+$ docker swarm join --token SWMTKN-1-4hjmliytwko2sqhdltddd61gvzeynvlsy0zlab0f99rb4n3c10-c2wjkjeezxklramrzogzbstld 10.128.0.6:2377
+This node joined a swarm as a worker.
 ```
 
 Create the overlay network which provides addressability between containers and services.
@@ -38,7 +50,7 @@ $ docker network create --driver overlay cognet
 Create the Microsoft SQL service to host the content store database. Notice the use of an NFS mounted volume in order to preserve data across server restarts as well as to allow the service to run the container on any node. 
 
 ```bash
-$ docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master-1\",volume-opt=device=:/opt/ibm/cognos_data us.gcr.io/stocks-289415/cognosdb:v1
+$ docker service create --name cognos-db --network cognet  --mount type=volume,dst=/var/opt/mssql,volume-driver=local,volume-opt=type=nfs,\"volume-opt=o=nfsvers=4,addr=master\",volume-opt=device=:/opt/ibm/cognos_data us.gcr.io/stocks-289415/cognosdb:v1
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
@@ -47,7 +59,7 @@ u4q1nho6zg0d        cognos-db           replicated          1/1                 
 Create the data tier service (aka. content manager). Due to the health check added to the container this step will take a little time to finish. If desired, use crtl-c to send the service creation to the background.
 
 ```bash
-$ docker service create --name content-manager --network cognet us.gcr.io/stocks-289415/content-manager:v11.1.7
+$ docker service create --name content-manager --network cognet --limit-memory=8g us.gcr.io/stocks-289415/content-manager:v11.1.7
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                     PORTS
 u4q1nho6zg0d        cognos-db           replicated          1/1                 cognosdb:v1
@@ -60,7 +72,7 @@ vp4jzhfkpqdn        content-manager.1   content-manager:v11.1.7   master-1      
 Create the application tier service. Due to the health check added to the container this step will take a little time to finish. If desired, use crtl-c to send the service creation to the background.
 
 ```bash
-$ docker service create --name application-tier --network cognet us.gcr.io/stocks-289415/application-tier:v11.1.7
+$ docker service create --name application-tier --network cognet --limit-memory=24g us.gcr.io/stocks-289415/application-tier:v11.1.7
 $ docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE                      PORTS
 y3xag00nx3lk        application-tier    replicated          1/1                 application-tier:v11.1.7

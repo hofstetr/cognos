@@ -1,28 +1,50 @@
-# Bastion Setup
-The following was done to set up the Bastion, aka. build, server.
+# Docker Setup
+The following was done to set up each virtual machine.
 
-sudo systemctl stop docker
-sudo rsync -axPS /var/lib/docker/ /mnt/x/y/docker_data #copy all existing data to new location
-sudo vi /lib/systemd/system/docker.service # or your favorite text editor
-in file docker.service find one line like this:
+Remove old versions of Docker:
 
-ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+```bash
+$ yum remove docker docker-client docker-client-latest docker-common \
+                  docker-latest docker-latest-logrotate docker-logrotate docker-engine
+```
 
-add --data-root /mnt/x/y/docker_data to it(on one line):
+Installed Docker Community Edition:
 
-ExecStart=/usr/bin/dockerd --data-root /mnt/x/y/docker_data -H fd:// --containerd=/run/containerd/containerd.sock
+```bash
+$ yum install -y yum-utils
 
-save and quit, then
+$ yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+$ yum install docker-ce docker-ce-cli containerd.io
+$ systemctl start docker
+$ docker pull us.gcr.io/stocks-289415/my-apache2
+$ docker pull us.gcr.io/stocks-289415/cognosdb:v1
+$ docker pull us.gcr.io/stocks-289415/content-manager:v11.1.7
+$ docker pull us.gcr.io/stocks-289415/application-tier:v11.1.7
+```
 
-sudo systemctl daemon-reload
-sudo systemctl start docker
+# NFS Setup on Master
 
 Add the NFS utilities to support creating NFS shared volumes.
 
-yum install nfs-utils rpcbind
-systemctl enable nfs-server
-systemctl enable rpcbind
-cat /etc/exports
-/opt/ibm/cognos_data 10.128.0.0/20(rw,sync,no_root_squash)
-systemctl start nfs
-exportfs -v
+```bash
+$ yum -y install nfs-utils rpcbind
+$ systemctl enable nfs-server
+$ systemctl enable rpcbind
+$ mkdir -p /opt/ibm/cognos_data
+$ cat /etc/exports
+  /opt/ibm/cognos_data 10.128.0.0/20(rw,sync,no_root_squash)
+$ systemctl start nfs
+$ exportfs -v
+```
+
+# NFS Setup on Workers
+
+Add the NFS utilities to support mounting NFS shares.
+
+```bash
+$ yum -y install nfs-utils rpcbind
+$ mkdir -p /opt/ibm/cognos_data
+$ cat /etc/fstab |grep cognos_data
+  master:/opt/ibm/cognos_data /opt/ibm/cognos_data nfs defaults 0 0
+$ mount /opt/ibm/cognos_data
+```
